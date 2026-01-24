@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mastermind Solver（仅反馈命中位数版）</title>
+
+  <style>
+    :root{
+      --fg:#111;
+      --muted:#666;
+      --muted2:#888;
+      --border:#d6d6d6;
+      --bg:#fff;
+      --bg2:#fafafa;
+      --accent:#1a73e8;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:16px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC","Hiragino Sans GB","Microsoft YaHei", sans-serif;
+      color:var(--fg);
+      background:var(--bg);
+      line-height:1.4;
+    }
+    h2{
+      margin:0 0 12px 0;
+      font-size:20px;
+      font-weight:700;
+    }
+    hr{ border:none; border-top:1px solid var(--border); margin:14px 0; }
+
+    fieldset{
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:12px 12px 10px;
+      background:var(--bg);
+      min-width:0;
+    }
+    legend{
+      padding:0 6px;
+      color:#222;
+      font-weight:600;
+    }
+
+    label{ display:inline-flex; align-items:center; gap:8px; }
+    input[type="number"], input[type="text"], select{
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:6px 8px;
+      background:#fff;
+      min-width:0;
+      font-size:14px;
+    }
+    input[type="text"]{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      letter-spacing:0.06em;
+    }
+
+    .row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+    }
+    .pipe{
+      color:var(--muted2);
+      margin:0 2px;
+      user-select:none;
+    }
+
+    .btn{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:8px;
+      padding:7px 10px;
+      cursor:pointer;
+      font-size:14px;
+    }
+    .btn:hover{ background:var(--bg2); }
+    .btn:active{ transform:translateY(1px); }
+
+    .btn-primary{
+      border-color:var(--accent);
+      background:var(--accent);
+      color:#fff;
+      padding:10px 14px;           /* 提交本轮稍大 */
+      font-weight:600;
+    }
+    .btn-primary:hover{ filter:brightness(0.97); background:var(--accent); }
+    .btn-small{
+      padding:6px 10px;
+      font-size:13px;
+    }
+
+    .subtle{
+      color:var(--muted);
+      font-size:13px;
+    }
+    #warnInfo{ color:#b00; margin-top:6px; }
+    #spaceInfo{ color:var(--muted); margin-top:6px; }
+
+    .two-col{
+      display:flex;
+      gap:16px;
+      align-items:flex-start;
+    }
+    .col{ flex:1; min-width:0; }
+
+    .table-wrap{
+      width:100%;
+      overflow-x:auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      background:#fff;
+      min-width:520px; /* 让移动端可横向滚动 */
+    }
+    th, td{
+      border:1px solid var(--border);
+      padding:8px 10px;
+      vertical-align:middle;
+      text-align:left;
+      font-size:14px;
+      white-space:nowrap;
+    }
+    th{
+      background:var(--bg2);
+      font-weight:700;
+    }
+    .th-cn{ font-size:12px; color:#222; line-height:1.05; }
+    .th-en{ font-size:11px; color:var(--muted2); line-height:1.05; margin-top:2px; font-weight:600; }
+
+    .bulls-stepper{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:nowrap;
+    }
+    .stepper-btns{
+      display:inline-flex;
+      gap:6px;
+    }
+
+    /* 移动端：两列变一列、表格更易滚动 */
+    @media (max-width: 900px){
+      .two-col{ flex-direction:column; }
+      table{ min-width:640px; }
+    }
+    @media (max-width: 420px){
+      body{ margin:12px; }
+      h2{ font-size:18px; }
+      th, td{ padding:7px 9px; }
+      .btn{ padding:7px 9px; }
+      .btn-primary{ padding:10px 12px; }
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Mastermind Solver（仅反馈命中位数版）</h2>
+
+  <div>
+    <fieldset>
+      <legend>参数</legend>
+
+      <div class="row">
+        <label>位数（n）:
+          <input id="nInput" type="number" min="1" max="10" value="4" />
+        </label>
+
+        <span class="pipe">|</span>
+
+        <label>进制（m，[2, 36]）:
+          <input id="mInput" type="number" min="2" max="36" value="10" />
+        </label>
+
+        <button id="initBtn" class="btn">应用参数</button>
+      </div>
+
+      <div id="spaceInfo"></div>
+      <div id="warnInfo"></div>
+    </fieldset>
+  </div>
+
+  <hr />
+
+  <div class="two-col">
+    <div class="col">
+      <fieldset>
+        <legend>输入一轮反馈</legend>
+
+        <div class="row" style="margin-bottom:10px;">
+          <label>猜测（Guess）:
+            <input id="guessInput" type="text" value="0000" />
+          </label>
+        </div>
+
+        <div class="row" style="margin-bottom:10px;">
+          <label>命中位数（Bulls）:
+            <span class="bulls-stepper">
+              <input id="bullsInput" type="number" min="0" value="0" />
+              <span class="stepper-btns">
+                <button id="bullsDecBtn" class="btn btn-small" type="button" aria-label="Bulls -1">-1</button>
+                <button id="bullsIncBtn" class="btn btn-small" type="button" aria-label="Bulls +1">+1</button>
+              </span>
+            </span>
+            <span class="subtle">范围：0..n</span>
+          </label>
+        </div>
+
+        <div class="row">
+          <button id="addRoundBtn" class="btn btn-primary">提交这一轮（过滤候选集）</button>
+          <button id="undoBtn" class="btn">撤销上一轮</button>
+          <button id="clearRoundsBtn" class="btn">清空轮次</button>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div>当前候选数：<span id="candCount">-</span></div>
+          <div class="subtle">若候选数=1，会显示唯一答案。</div>
+          <div id="uniqueAnswer" style="font-weight:700; margin-top:4px;"></div>
+        </div>
+      </fieldset>
+
+      <fieldset style="margin-top:12px;">
+        <legend>轮次记录</legend>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Guess</th>
+                <th>Bulls</th>
+                <th>候选数（过滤后）</th>
+              </tr>
+            </thead>
+            <tbody id="roundsTbody"></tbody>
+          </table>
+        </div>
+      </fieldset>
+
+      <fieldset style="margin-top:12px;">
+        <legend>策略计算设置</legend>
+
+        <div class="row" style="margin-bottom:8px;">
+          <label>候选/全空间作为可选猜测集：
+            <select id="guessSetSelect">
+              <option value="candidates" selected>仅候选集（更快）</option>
+              <option value="all">全空间（更慢，可能更好）</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row" style="margin-bottom:8px;">
+          <label>评估模式：
+            <select id="modeSelect">
+              <option value="auto" selected>自动（空间大则采样）</option>
+              <option value="exact">精确（可能很慢）</option>
+              <option value="sample">采样（更快）</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row" style="margin-bottom:8px;">
+          <label>采样数量（mode=sample 或 auto 时可能用到）：
+            <input id="sampleSizeInput" type="number" min="50" max="20000" value="800" />
+          </label>
+        </div>
+
+        <div class="row" style="margin-bottom:10px;">
+          <label>显示 Top K：
+            <input id="topKInput" type="number" min="5" max="200" value="25" />
+          </label>
+        </div>
+
+        <div class="row">
+          <button id="recalcBtn" class="btn">重新计算 Next Guess Ranking</button>
+          <button id="stopBtn" class="btn">停止计算</button>
+        </div>
+
+        <div style="margin-top:8px;">
+          <div>计算进度：<span id="progressText">-</span></div>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="col">
+      <fieldset>
+        <legend>Policy / Next guess ranking（最大熵优先）</legend>
+        <div id="rankingHint" class="subtle" style="margin-bottom:8px;"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>
+                  <div class="th-cn">排名</div>
+                  <div class="th-en">Rank</div>
+                </th>
+                <th>
+                  <div class="th-cn">猜测</div>
+                  <div class="th-en">Guess</div>
+                </th>
+                <th>
+                  <div class="th-cn">熵（比特）</div>
+                  <div class="th-en">Entropy(bits)</div>
+                </th>
+                <th>
+                  <div class="th-cn">最坏剩余</div>
+                  <div class="th-en">WorstRemain</div>
+                </th>
+                <th>
+                  <div class="th-cn">期望剩余</div>
+                  <div class="th-en">ExpectedRemain</div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="rankingTbody"></tbody>
+          </table>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ======= 工具：字符表 / 编码 =======
+  const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  function toChar(v) {
+    return ALPHABET[v] ?? "?";
+  }
+
+  function parseGuess(str, n, base) {
+    const s = String(str).trim().toUpperCase();
+    if (s.length !== n) {
+      return { ok: false, err: `Guess长度必须等于 n=${n}` };
+    }
+    const digits = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      const ch = s[i];
+      const v = ALPHABET.indexOf(ch);
+      if (v < 0 || v >= base) {
+        return { ok: false, err: `第${i+1}位字符 '${ch}' 不在 base=${base} 范围内` };
+      }
+      digits[i] = v;
+    }
+    return { ok: true, digits };
+  }
+
+  function digitsToString(digs) {
+    let s = "";
+    for (let i = 0; i < digs.length; i++) s += toChar(digs[i]);
+    return s;
+  }
+
+  function powBigInt(a, b) {
+    let x = 1n;
+    let A = BigInt(a);
+    for (let i = 0; i < b; i++) x *= A;
+    return x;
+  }
+
+  // ======= 核心：候选集 + 预计算 digitsMatrix =======
+  let n = 4;
+  let base = 10;
+  let total = 0;             // Number
+  let totalBig = 0n;         // BigInt
+  let digitsMatrix = null;   // Uint8Array
+  let candidates = [];       // Array<number> indices
+  let rounds = [];           // { guessDigits: Uint8Array, bulls: number, candAfter: number }
+  let stopFlag = false;
+
+  const MAX_ENUM_TOTAL = 2000000;
+  const MAX_EXACT_PAIRS = 60_000_000;
+
+  function setWarn(msg) {
+    document.getElementById("warnInfo").textContent = msg || "";
+  }
+
+  function setSpaceInfo(msg) {
+    document.getElementById("spaceInfo").textContent = msg || "";
+  }
+
+  function resetUILists() {
+    document.getElementById("roundsTbody").innerHTML = "";
+    document.getElementById("rankingTbody").innerHTML = "";
+    document.getElementById("progressText").textContent = "-";
+    document.getElementById("candCount").textContent = "-";
+    document.getElementById("uniqueAnswer").textContent = "";
+    document.getElementById("rankingHint").textContent = "";
+  }
+
+  function buildDigitsMatrix() {
+    totalBig = powBigInt(base, n);
+    const totalAsNumber = Number(totalBig);
+    if (!Number.isFinite(totalAsNumber) || totalAsNumber > Number.MAX_SAFE_INTEGER) {
+      total = Infinity;
+      return { ok: false, err: "base^n 超出 JavaScript 可安全枚举范围（Number.MAX_SAFE_INTEGER），请调小 n 或 base。" };
+    }
+    total = totalAsNumber;
+
+    if (total > MAX_ENUM_TOTAL) {
+      digitsMatrix = null;
+      return { ok: false, err: `空间大小=${total}，超过预计算上限=${MAX_ENUM_TOTAL}。请用采样模式或降低 n/base。` };
+    }
+
+    const mat = new Uint8Array(total * n);
+    for (let idx = 0; idx < total; idx++) {
+      let x = idx;
+      for (let pos = n - 1; pos >= 0; pos--) {
+        mat[idx * n + pos] = x % base;
+        x = Math.floor(x / base);
+      }
+    }
+    digitsMatrix = mat;
+    return { ok: true };
+  }
+
+  function initCandidates() {
+    candidates = [];
+    for (let i = 0; i < total; i++) candidates.push(i);
+  }
+
+  function indexToDigits(idx) {
+    const digs = new Uint8Array(n);
+    for (let pos = 0; pos < n; pos++) digs[pos] = digitsMatrix[idx * n + pos];
+    return digs;
+  }
+
+  function bullsIndexGuess(guessIdx, candIdx) {
+    let b = 0;
+    const gOff = guessIdx * n;
+    const cOff = candIdx * n;
+    for (let i = 0; i < n; i++) {
+      if (digitsMatrix[gOff + i] === digitsMatrix[cOff + i]) b++;
+    }
+    return b;
+  }
+
+  function bullsDigitsToIndex(guessDigits, candIdx) {
+    let b = 0;
+    const cOff = candIdx * n;
+    for (let i = 0; i < n; i++) {
+      if (guessDigits[i] === digitsMatrix[cOff + i]) b++;
+    }
+    return b;
+  }
+
+  function filterCandidates(guessDigits, bulls) {
+    const next = [];
+    for (let i = 0; i < candidates.length; i++) {
+      const candIdx = candidates[i];
+      if (bullsDigitsToIndex(guessDigits, candIdx) === bulls) next.push(candIdx);
+    }
+    candidates = next;
+  }
+
+  function renderRounds() {
+    const tb = document.getElementById("roundsTbody");
+    tb.innerHTML = "";
+    for (let i = 0; i < rounds.length; i++) {
+      const r = rounds[i];
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td>${digitsToString(r.guessDigits)}</td>
+        <td>${r.bulls}</td>
+        <td>${r.candAfter}</td>
+      `;
+      tb.appendChild(tr);
+    }
+  }
+
+  function updateCandUI() {
+    document.getElementById("candCount").textContent = String(candidates.length);
+    const ua = document.getElementById("uniqueAnswer");
+    if (candidates.length === 1) {
+      const ans = digitsToString(indexToDigits(candidates[0]));
+      ua.textContent = `唯一答案：${ans}`;
+    } else {
+      ua.textContent = "";
+    }
+  }
+
+  // ======= Bulls 输入步进（+1 / -1）======
+  function clampInt(x, lo, hi) {
+    if (!Number.isFinite(x)) return lo;
+    x = Math.trunc(x);
+    if (x < lo) return lo;
+    if (x > hi) return hi;
+    return x;
+  }
+
+  function adjustBulls(delta) {
+    const el = document.getElementById("bullsInput");
+    const cur = Number(el.value);
+    const next = clampInt(cur + delta, 0, n);
+    el.value = String(next);
+  }
+
+  // ======= Entropy Policy =======
+  function estimateComplexity(guessCount, candCount) {
+    return guessCount * candCount * n;
+  }
+
+  function randomSample(arr, k) {
+    const n = arr.length;
+    if (k >= n) return arr.slice();
+    const copy = arr.slice();
+    for (let i = 0; i < k; i++) {
+      const j = i + Math.floor(Math.random() * (n - i));
+      const tmp = copy[i]; copy[i] = copy[j]; copy[j] = tmp;
+    }
+    return copy.slice(0, k);
+  }
+
+  function selectGuessSet() {
+    const guessSetMode = document.getElementById("guessSetSelect").value;
+    if (guessSetMode === "all") {
+      if (!digitsMatrix) return { ok: false, err: "当前未预计算全空间（空间太大或未初始化）。无法用 all 作为猜测集。" };
+      const all = [];
+      for (let i = 0; i < total; i++) all.push(i);
+      return { ok: true, guesses: all, label: "全空间" };
+    }
+    return { ok: true, guesses: candidates.slice(), label: "候选集" };
+  }
+
+  function pickEvalMode(guessCount, candCount) {
+    const mode = document.getElementById("modeSelect").value;
+    if (mode === "exact") return "exact";
+    if (mode === "sample") return "sample";
+    const ops = estimateComplexity(guessCount, candCount);
+    return (ops <= MAX_EXACT_PAIRS) ? "exact" : "sample";
+  }
+
+  async function computeRanking() {
+    stopFlag = false;
+    const rankingTb = document.getElementById("rankingTbody");
+    rankingTb.innerHTML = "";
+    document.getElementById("rankingHint").textContent = "";
+
+    if (!digitsMatrix) {
+      document.getElementById("rankingHint").textContent =
+        "当前未预计算全空间 digitsMatrix（空间太大或未初始化）。请降低 n/base，或先用更小规模。";
+      return;
+    }
+    if (candidates.length === 0) {
+      document.getElementById("rankingHint").textContent = "候选集为空：说明输入的反馈集合不一致（无解）。";
+      return;
+    }
+    if (candidates.length === 1) {
+      document.getElementById("rankingHint").textContent = "候选集已唯一，无需再计算策略。";
+      renderRanking([{ idx: candidates[0], H: 0, worst: 1, exp: 1 }], 1);
+      return;
+    }
+
+    const guessSetRes = selectGuessSet();
+    if (!guessSetRes.ok) {
+      document.getElementById("rankingHint").textContent = guessSetRes.err;
+      return;
+    }
+    let guesses = guessSetRes.guesses;
+    const candCount = candidates.length;
+
+    const evalMode = pickEvalMode(guesses.length, candCount);
+    const sampleSize = Math.max(50, Math.min(20000, Number(document.getElementById("sampleSizeInput").value) || 800));
+    const topK = Math.max(5, Math.min(200, Number(document.getElementById("topKInput").value) || 25));
+
+    if (evalMode === "sample") {
+      guesses = randomSample(guesses, Math.min(sampleSize, guesses.length));
+    }
+
+    const ops = estimateComplexity(guesses.length, candCount);
+    document.getElementById("rankingHint").textContent =
+      `评估模式：${evalMode === "exact" ? "精确" : "采样"}；猜测集：${guessSetRes.label}；评估 guess 数：${guesses.length}；候选数：${candCount}；粗略比较次数≈${ops.toLocaleString()}`;
+
+    const results = [];
+    const batch = 200;
+    const counts = new Uint32Array(n + 1);
+
+    for (let gi = 0; gi < guesses.length; gi++) {
+      if (stopFlag) break;
+
+      const guessIdx = guesses[gi];
+      counts.fill(0);
+
+      for (let ci = 0; ci < candidates.length; ci++) {
+        const candIdx = candidates[ci];
+        const b = bullsIndexGuess(guessIdx, candIdx);
+        counts[b]++;
+      }
+
+      let H = 0;
+      let worst = 0;
+      let exp = 0;
+      const denom = candCount;
+
+      for (let r = 0; r <= n; r++) {
+        const c = counts[r];
+        if (c > 0) {
+          const p = c / denom;
+          H += -p * Math.log2(p);
+          if (c > worst) worst = c;
+          exp += (c * c) / denom;
+        }
+      }
+
+      results.push({ idx: guessIdx, H, worst, exp });
+
+      if ((gi + 1) % batch === 0) {
+        document.getElementById("progressText").textContent =
+          `${gi + 1}/${guesses.length}` + (stopFlag ? "（已停止）" : "");
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+
+    document.getElementById("progressText").textContent =
+      stopFlag ? "已停止（结果为部分排序）" : `完成：${guesses.length}/${guesses.length}`;
+
+    results.sort((a, b) => {
+      if (b.H !== a.H) return b.H - a.H;
+      if (a.worst !== b.worst) return a.worst - b.worst;
+      return a.exp - b.exp;
+    });
+
+    renderRanking(results, topK);
+  }
+
+  function renderRanking(results, topK) {
+    const tb = document.getElementById("rankingTbody");
+    tb.innerHTML = "";
+
+    const k = Math.min(topK, results.length);
+    for (let i = 0; i < k; i++) {
+      const r = results[i];
+      const guessStr = digitsToString(indexToDigits(r.idx));
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td><button class="btn btn-small" data-guess="${guessStr}">填入</button> ${guessStr}</td>
+        <td>${r.H.toFixed(6)}</td>
+        <td>${r.worst}</td>
+        <td>${r.exp.toFixed(3)}</td>
+      `;
+      tb.appendChild(tr);
+    }
+
+    tb.querySelectorAll("button[data-guess]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.getElementById("guessInput").value = btn.getAttribute("data-guess");
+      });
+    });
+  }
+
+  // ======= 事件处理 =======
+  function doInit() {
+    setWarn("");
+    resetUILists();
+    rounds = [];
+
+    n = Math.max(1, Math.min(10, Number(document.getElementById("nInput").value) || 4));
+    base = Math.max(2, Math.min(36, Number(document.getElementById("mInput").value) || 10));
+    document.getElementById("bullsInput").max = String(n);
+    document.getElementById("guessInput").value = "0".repeat(n);
+    document.getElementById("bullsInput").value = "0";
+
+    const matRes = buildDigitsMatrix();
+    setSpaceInfo(`搜索空间大小：m^n = ${base}^${n} = ${totalBig.toString()}`);
+
+    if (!matRes.ok) {
+      setWarn(matRes.err);
+      candidates = [];
+      updateCandUI();
+      return;
+    }
+
+    initCandidates();
+    updateCandUI();
+
+    computeRanking().catch(err => setWarn(String(err)));
+  }
+
+  function doAddRound() {
+    setWarn("");
+    if (!digitsMatrix) {
+      setWarn("尚未初始化或空间过大无法枚举。请先初始化，或降低 n/base。");
+      return;
+    }
+
+    const guessStr = document.getElementById("guessInput").value;
+    const parsed = parseGuess(guessStr, n, base);
+    if (!parsed.ok) {
+      setWarn(parsed.err);
+      return;
+    }
+    const bulls = Number(document.getElementById("bullsInput").value);
+    if (!Number.isInteger(bulls) || bulls < 0 || bulls > n) {
+      setWarn(`Bulls 必须是 0..${n} 的整数`);
+      return;
+    }
+
+    filterCandidates(parsed.digits, bulls);
+
+    rounds.push({
+      guessDigits: parsed.digits,
+      bulls,
+      candAfter: candidates.length
+    });
+
+    renderRounds();
+    updateCandUI();
+
+    computeRanking().catch(err => setWarn(String(err)));
+  }
+
+  function doUndo() {
+    setWarn("");
+    if (rounds.length === 0) return;
+
+    rounds.pop();
+
+    initCandidates();
+    for (const r of rounds) {
+      filterCandidates(r.guessDigits, r.bulls);
+      r.candAfter = candidates.length;
+    }
+
+    renderRounds();
+    updateCandUI();
+    computeRanking().catch(err => setWarn(String(err)));
+  }
+
+  function doClearRounds() {
+    setWarn("");
+    rounds = [];
+    if (digitsMatrix) initCandidates();
+    renderRounds();
+    updateCandUI();
+    computeRanking().catch(err => setWarn(String(err)));
+  }
+
+  // ======= 绑定 =======
+  document.getElementById("initBtn").addEventListener("click", doInit);
+  document.getElementById("addRoundBtn").addEventListener("click", doAddRound);
+  document.getElementById("undoBtn").addEventListener("click", doUndo);
+  document.getElementById("clearRoundsBtn").addEventListener("click", doClearRounds);
+  document.getElementById("recalcBtn").addEventListener("click", () => {
+    setWarn("");
+    computeRanking().catch(err => setWarn(String(err)));
+  });
+  document.getElementById("stopBtn").addEventListener("click", () => {
+    stopFlag = true;
+  });
+
+  // Bulls 步进（+1 / -1）
+  document.getElementById("bullsDecBtn").addEventListener("click", () => adjustBulls(-1));
+  document.getElementById("bullsIncBtn").addEventListener("click", () => adjustBulls(+1));
+
+  // Enter 快捷提交
+  document.getElementById("guessInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doAddRound();
+  });
+  document.getElementById("bullsInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doAddRound();
+  });
+
+  // 页面加载自动初始化
+  doInit();
+})();
+</script>
+</body>
+</html>

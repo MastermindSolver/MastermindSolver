@@ -23,11 +23,37 @@
       background:var(--bg);
       line-height:1.4;
     }
-    h2{
+
+    /* ===== Header (Title + GitHub link) ===== */
+    .header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
       margin:0 0 12px 0;
+      flex-wrap:wrap;
+    }
+    h2{
+      margin:0;
       font-size:20px;
       font-weight:700;
     }
+    .repo-link{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      text-decoration:none;
+      color:var(--accent);
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    .repo-link:hover{ background:var(--bg2); }
+    .repo-link:active{ transform:translateY(1px); }
+
     hr{ border:none; border-top:1px solid var(--border); margin:14px 0; }
 
     fieldset{
@@ -107,6 +133,11 @@
     }
     .col{ flex:1; min-width:0; }
 
+    /* Desktop: keep current two-column layout; add vertical spacing between left-column fieldsets */
+    .col fieldset + fieldset{
+      margin-top:12px;
+    }
+
     .table-wrap{
       width:100%;
       overflow-x:auto;
@@ -144,11 +175,33 @@
       gap:6px;
     }
 
-    /* 移动端：两列变一列、表格更易滚动 */
+    /* 移动端：两列变一列 + 重新排序
+       目标顺序：
+       参数（配置）
+       输入一轮反馈
+       Policy / Next guess ranking（最大熵优先）
+       轮次记录
+       策略计算设置
+    */
     @media (max-width: 900px){
       .two-col{ flex-direction:column; }
+
+      /* 关键：把左右列容器“扁平化”，让 fieldset 成为 .two-col 的直接 flex 子项，从而可排序 */
+      .col{ display: contents; }
+
+      /* 用 gap 控制纵向间距（避免依赖 col 内 margin-top） */
+      .two-col{ gap:12px; }
+      .col fieldset + fieldset{ margin-top:0; } /* 防止某些浏览器仍应用该规则 */
+
+      /* 通过 order 重新排列 */
+      fieldset.section-input{ order:1; }
+      fieldset.section-policy{ order:2; }
+      fieldset.section-rounds{ order:3; }
+      fieldset.section-strategy{ order:4; }
+
       table{ min-width:640px; }
     }
+
     @media (max-width: 420px){
       body{ margin:12px; }
       h2{ font-size:18px; }
@@ -160,7 +213,16 @@
 </head>
 
 <body>
-  <h2>Mastermind Solver（仅反馈命中位数版）</h2>
+  <div class="header">
+    <h2>Mastermind Solver（仅反馈命中位数版）</h2>
+    <a class="repo-link"
+       href="https://github.com/MastermindSolver/MastermindSolver"
+       target="_blank"
+       rel="noopener noreferrer"
+       aria-label="GitHub Repository">
+      GitHub
+    </a>
+  </div>
 
   <div>
     <fieldset>
@@ -189,7 +251,7 @@
 
   <div class="two-col">
     <div class="col">
-      <fieldset>
+      <fieldset class="section-input">
         <legend>输入一轮反馈</legend>
 
         <div class="row" style="margin-bottom:10px;">
@@ -224,7 +286,7 @@
         </div>
       </fieldset>
 
-      <fieldset style="margin-top:12px;">
+      <fieldset class="section-rounds">
         <legend>轮次记录</legend>
         <div class="table-wrap">
           <table>
@@ -241,7 +303,7 @@
         </div>
       </fieldset>
 
-      <fieldset style="margin-top:12px;">
+      <fieldset class="section-strategy">
         <legend>策略计算设置</legend>
 
         <div class="row" style="margin-bottom:8px;">
@@ -287,7 +349,7 @@
     </div>
 
     <div class="col">
-      <fieldset>
+      <fieldset class="section-policy">
         <legend>Policy / Next guess ranking（最大熵优先）</legend>
         <div id="rankingHint" class="subtle" style="margin-bottom:8px;"></div>
 

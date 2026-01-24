@@ -95,9 +95,8 @@ H(g) = \sum_{r=0}^{n} p_r \log_2 \frac{1}{p_r}
 
 ## 使用方法
 
-1. 下载/克隆仓库
-2. 直接用浏览器打开 `solver.html`
-3. 设置 `n` 与 `m`
+1. 直接用浏览器打开 `ms.q2333.com`
+3. 设置 `格子数n` 与 `每格子内的量m (进制)`
 4. 每轮输入：
    - Guess（长度 n，字符在 base 内）
    - Bulls（0..n 的整数）
@@ -114,6 +113,12 @@ H(g) = \sum_{r=0}^{n} p_r \log_2 \frac{1}{p_r}
 
 ## 致谢与参考（Acknowledgements & References）
 
+猜谜游戏：
+- 页面地址：https://lczkeyide.github.io/guessnum/
+  - 作者：lczkeyide@GitHub
+  - 仓库地址；https://github.com/lczkeyide/lczkeyide.github.io
+
+
 本项目的“最大熵选猜”思想与表述，参考了：
 
 - Erik Göransson Gaspar 的 *Optimal Mastermind*（信息论/熵驱动的 Mastermind 策略说明与开源实现）
@@ -126,4 +131,4 @@ H(g) = \sum_{r=0}^{n} p_r \log_2 \frac{1}{p_r}
 - Michael T. Goodrich, *On the Algorithmic Complexity of the Mastermind Game*, 2009.
 - 以及相关综述资料/讲义（Mastermind variants, query complexity 等）。
 
-本仓库为学习与工程实现目的整理，感谢上述作者与研究者的公开工作。
+本仓库为学习与工程实现目的整理，感谢包括但不限于上述作者与研究者的公开工作。
